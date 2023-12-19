@@ -62,7 +62,7 @@ app.post("/login", async (req, res) => {
 
         const foundUser = await User.findOne({ email: username });
 
-        if (foundUser && (await bcrypt.compare(password, foundUser.password))) {
+        if (foundUser && foundUser.password === password) {
             res.render("secrets");
         } else {
             res.render("login", { error: "Invalid username or password" });
