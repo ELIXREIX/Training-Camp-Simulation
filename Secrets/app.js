@@ -4,13 +4,14 @@ const ejs = require("ejs");
 const mongoose = require("mongoose");
 const encrypt = require('mongoose-encryption');
 const session = require('express-session'); // Add express-session
+const bcrypt = require('bcrypt');
 require('dotenv').config();
 
 const app = express();
 
 // Use express-session middleware
 app.use(session({
-    secret: 'your-secret-key',  // Change this to a secure key
+    secret: process.env.SECRET,  // Change this to a secure key
     resave: false,
     saveUninitialized: false
 }));
@@ -18,11 +19,10 @@ app.use(session({
 // Define the User schema and model
 const userSchema = new mongoose.Schema({
     email: String,
-    password: String
+    password: String,
 });
 
 // Add encryption plugin to encrypt the 'password' field
-const secret = "ThisisSecret";
 userSchema.plugin(encrypt, { secret: process.env.SECRET, encryptedFields: ['password'] });
 
 const User = mongoose.model("User", userSchema);
@@ -38,9 +38,11 @@ app.get("/register", (req, res) => {
 
 app.post("/register", async (req, res) => {
     try {
+        const hashedPassword = await bcrypt.hash(req.body.password, 10);
+
         const newUser = new User({
             email: req.body.username,
-            password: req.body.password,
+            password: hashedPassword,
         });
 
         await newUser.save();
@@ -62,7 +64,7 @@ app.post("/login", async (req, res) => {
 
         const foundUser = await User.findOne({ email: username });
 
-        if (foundUser && foundUser.password === password) {
+        if (foundUser && (await bcrypt.compare(password, foundUser.password))) {
             res.render("secrets");
         } else {
             res.render("login", { error: "Invalid username or password" });
